@@ -245,11 +245,7 @@ const queryPermission = require('queryPermission');
 const makeInteger = require('makeInteger');
 const getType = require('getType');
 
-const DEBUG = !!data.debugMode;
-const log = function() {
-  if (!DEBUG) return;
-  logToConsole.apply(null, arguments);
-};
+const DEBUG = data.debugMode === true;
 
 const STORAGE_KEY = data.storageKey || 'bdt_ecom_attr_v1';
 const TTL_MS = (makeInteger(data.ttlMinutes) || 30) * 60 * 1000;
@@ -261,12 +257,12 @@ const captureEvents = (data.captureEvents || []).map(function(row) {
 
 const currentEvent = copyFromDataLayer('event');
 if (captureEvents.indexOf(currentEvent) === -1) {
-  log('[BDT Capture] No-op for event:', currentEvent);
+  if (DEBUG) logToConsole('[BDT Capture] No-op for event:', currentEvent);
   return data.gtmOnSuccess();
 }
 
 if (!queryPermission('access_local_storage', STORAGE_KEY)) {
-  log('[BDT Capture] Missing localStorage permission for key:', STORAGE_KEY);
+  if (DEBUG) logToConsole('[BDT Capture] Missing localStorage permission for key:', STORAGE_KEY);
   return data.gtmOnFailure();
 }
 
@@ -276,7 +272,7 @@ const items = copyFromDataLayer(itemsPath) || [];
 const ecom = copyFromDataLayer(ecomPath) || {};
 
 if (getType(items) !== 'array' || items.length === 0) {
-  log('[BDT Capture] No items for event:', currentEvent);
+  if (DEBUG) logToConsole('[BDT Capture] No items for event:', currentEvent);
   return data.gtmOnSuccess();
 }
 
@@ -301,13 +297,18 @@ if (!blob || getType(blob) !== 'object' || !blob.items) {
   blob = { v: 1, items: {} };
 }
 
+// Rebuild items map, dropping expired entries.
+// The GTM sandbox does not support the `delete` operator, so we filter into a fresh object.
+const freshItems = {};
 const existingIds = Object.keys(blob.items);
 for (let i = 0; i < existingIds.length; i++) {
-  const entry = blob.items[existingIds[i]];
-  if (!entry || !entry.captured_at || now - entry.captured_at > TTL_MS) {
-    delete blob.items[existingIds[i]];
+  const key = existingIds[i];
+  const entry = blob.items[key];
+  if (entry && entry.captured_at && now - entry.captured_at <= TTL_MS) {
+    freshItems[key] = entry;
   }
 }
+blob.items = freshItems;
 
 const fallbackListId = ecom.item_list_id;
 const fallbackListName = ecom.item_list_name;
@@ -346,7 +347,7 @@ for (let j = 0; j < items.length; j++) {
 }
 
 localStorage.setItem(STORAGE_KEY, JSON.stringify(blob));
-log('[BDT Capture] Stored attribution. event:', currentEvent, 'items:', items.length, 'totalStored:', Object.keys(blob.items).length);
+if (DEBUG) logToConsole('[BDT Capture] Stored attribution. event:', currentEvent, 'items:', items.length);
 
 data.gtmOnSuccess();
 
