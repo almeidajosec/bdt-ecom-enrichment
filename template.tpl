@@ -298,11 +298,10 @@ if (!blob || getType(blob) !== 'object' || !blob.items) {
 }
 
 // Rebuild items map, dropping expired entries.
-// The GTM sandbox does not support the `delete` operator, so we filter into a fresh object.
+// The GTM sandbox exposes neither the `delete` operator nor `Object.keys`,
+// so we filter into a fresh object using a for...in loop.
 const freshItems = {};
-const existingIds = Object.keys(blob.items);
-for (let i = 0; i < existingIds.length; i++) {
-  const key = existingIds[i];
+for (const key in blob.items) {
   const entry = blob.items[key];
   if (entry && entry.captured_at && now - entry.captured_at <= TTL_MS) {
     freshItems[key] = entry;
