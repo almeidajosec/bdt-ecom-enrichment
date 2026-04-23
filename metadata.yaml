@@ -1,5 +1,5 @@
 homepage: "https://betterdatatoday.com"
 documentation: "https://github.com/almeidajosec/bdt-ecom-enrichment#readme"
 versions:
-  - sha: 433e026a6f5b0f501b908124a9057f64f2f0a498
+  - sha: 0571cd8117973e8579e320268ac35a7e89d488d3
     changeNotes: Initial release. Captures GA4 ecommerce list & promotion attribution per item_id to localStorage with TTL.
